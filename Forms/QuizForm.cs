@@ -1,21 +1,15 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
-using MySql.Data.MySqlClient;
+using MySql.Data.MySqlClient;  // Import MySQL client
 
 namespace QuizMester
 {
     public partial class QuizForm : Form
     {
-        private Label lblQuestion;
-        private Button btnOption1;
-        private Button btnOption2;
-        private Button btnOption3;
-        private Button btnOption4;
-        private Button btnSubmit;
         private string username;
+        private int difficulty;  // Store difficulty level
 
         private List<string> questionsText = new List<string>();  // List to store questions
         private List<List<string>> answers = new List<List<string>>();  // List of answer sets
@@ -25,11 +19,14 @@ namespace QuizMester
         private Random random = new Random();
         private string selectedAnswer = "";  // Track the selected answer
 
-        public QuizForm(string username)
+        // Updated constructor to take both username and difficulty
+        public QuizForm(string username, int difficulty)
         {
             this.username = username;
+            this.difficulty = difficulty;  // Save the selected difficulty
             InitializeComponent();
-            LoadQuestions();  // Load all questions from the database
+            LoadQuestions();  // Load questions based on the difficulty
+            CenterToScreen();
         }
 
         private void QuizForm_Load(object sender, EventArgs e)
@@ -37,7 +34,6 @@ namespace QuizMester
             LoadNextQuestion();
         }
 
-        // Load questions and answers from the database
         private void LoadQuestions()
         {
             string connectionString = "Server=localhost;Database=quizmester;Uid=root;";  // Replace with your connection string
@@ -47,8 +43,10 @@ namespace QuizMester
                 try
                 {
                     conn.Open();
-                    string query = "SELECT question_text, correct_answer, wrong_answer1, wrong_answer2, wrong_answer3 FROM questions";
+                    string query = "SELECT question_text, correct_answer, wrong_answer1, wrong_answer2, wrong_answer3 " +
+                                   "FROM questions WHERE difficulty = @difficulty";
                     MySqlCommand cmd = new MySqlCommand(query, conn);
+                    cmd.Parameters.AddWithValue("@difficulty", this.difficulty);  // Use the selected difficulty
                     MySqlDataReader reader = cmd.ExecuteReader();
 
                     while (reader.Read())
@@ -98,6 +96,9 @@ namespace QuizMester
                 return;
             }
 
+            // Update the question progress label
+            lblQuestionProgress.Text = $"Question {currentQuestionIndex + 1}/{questionsText.Count}";
+
             // Load the current question
             lblQuestion.Text = questionsText[currentQuestionIndex];
 
@@ -115,6 +116,7 @@ namespace QuizMester
 
             currentQuestionIndex++;  // Move to the next question for the next round
         }
+
 
         private void ResetButtonColors()
         {
@@ -166,7 +168,6 @@ namespace QuizMester
             LoadNextQuestion();
         }
 
-
         private void SaveScore()
         {
             string connectionString = "Server=localhost;Database=quizmester;Uid=root;";  // Update with your connection string
@@ -176,10 +177,11 @@ namespace QuizMester
                 try
                 {
                     conn.Open();
-                    string query = "INSERT INTO scores (username, score) VALUES (@username, @score)";
+                    string query = "INSERT INTO scores (username, score, difficulty) VALUES (@username, @score, @difficulty)";
                     MySqlCommand cmd = new MySqlCommand(query, conn);
                     cmd.Parameters.AddWithValue("@username", username);
                     cmd.Parameters.AddWithValue("@score", score);
+                    cmd.Parameters.AddWithValue("@difficulty", difficulty);  // Save the difficulty level
 
                     cmd.ExecuteNonQuery();
 
@@ -192,97 +194,13 @@ namespace QuizMester
             }
         }
 
+
         private void ShowLeaderboard()
         {
             // Open the leaderboard form
             ScoreboardForm scoreboardForm = new ScoreboardForm();
             scoreboardForm.Show();
             this.Close();  // Close the current quiz form
-        }
-
-        private void InitializeComponent()
-        {
-            this.lblQuestion = new System.Windows.Forms.Label();
-            this.btnOption1 = new System.Windows.Forms.Button();
-            this.btnOption2 = new System.Windows.Forms.Button();
-            this.btnOption3 = new System.Windows.Forms.Button();
-            this.btnOption4 = new System.Windows.Forms.Button();
-            this.btnSubmit = new System.Windows.Forms.Button();
-            this.SuspendLayout();
-            // 
-            // lblQuestion
-            // 
-            this.lblQuestion.AutoSize = true;
-            this.lblQuestion.Location = new System.Drawing.Point(183, 100);
-            this.lblQuestion.Name = "lblQuestion";
-            this.lblQuestion.Size = new System.Drawing.Size(60, 13);
-            this.lblQuestion.TabIndex = 0;
-            this.lblQuestion.Text = "Question?";
-            // 
-            // btnOption1
-            // 
-            this.btnOption1.Location = new System.Drawing.Point(160, 150);
-            this.btnOption1.Name = "btnOption1";
-            this.btnOption1.Size = new System.Drawing.Size(100, 30);
-            this.btnOption1.TabIndex = 1;
-            this.btnOption1.Text = "Option 1";
-            this.btnOption1.UseVisualStyleBackColor = true;
-            this.btnOption1.Click += new System.EventHandler(this.btnOption_Click);
-            // 
-            // btnOption2
-            // 
-            this.btnOption2.Location = new System.Drawing.Point(160, 190);
-            this.btnOption2.Name = "btnOption2";
-            this.btnOption2.Size = new System.Drawing.Size(100, 30);
-            this.btnOption2.TabIndex = 2;
-            this.btnOption2.Text = "Option 2";
-            this.btnOption2.UseVisualStyleBackColor = true;
-            this.btnOption2.Click += new System.EventHandler(this.btnOption_Click);
-            // 
-            // btnOption3
-            // 
-            this.btnOption3.Location = new System.Drawing.Point(160, 230);
-            this.btnOption3.Name = "btnOption3";
-            this.btnOption3.Size = new System.Drawing.Size(100, 30);
-            this.btnOption3.TabIndex = 3;
-            this.btnOption3.Text = "Option 3";
-            this.btnOption3.UseVisualStyleBackColor = true;
-            this.btnOption3.Click += new System.EventHandler(this.btnOption_Click);
-            // 
-            // btnOption4
-            // 
-            this.btnOption4.Location = new System.Drawing.Point(160, 270);
-            this.btnOption4.Name = "btnOption4";
-            this.btnOption4.Size = new System.Drawing.Size(100, 30);
-            this.btnOption4.TabIndex = 4;
-            this.btnOption4.Text = "Option 4";
-            this.btnOption4.UseVisualStyleBackColor = true;
-            this.btnOption4.Click += new System.EventHandler(this.btnOption_Click);
-            //
-            // btnSubmit
-            // 
-            this.btnSubmit.Location = new System.Drawing.Point(160, 320);
-            this.btnSubmit.Name = "btnSubmit";
-            this.btnSubmit.Size = new System.Drawing.Size(100, 30);
-            this.btnSubmit.TabIndex = 5;
-            this.btnSubmit.Text = "Submit";
-            this.btnSubmit.UseVisualStyleBackColor = true;
-            this.btnSubmit.Click += new System.EventHandler(this.btnSubmit_Click);
-
-            // 
-            // QuizForm
-            // 
-            this.ClientSize = new System.Drawing.Size(433, 401);
-            this.Controls.Add(this.btnSubmit);
-            this.Controls.Add(this.btnOption4);
-            this.Controls.Add(this.btnOption3);
-            this.Controls.Add(this.btnOption2);
-            this.Controls.Add(this.btnOption1);
-            this.Controls.Add(this.lblQuestion);
-            this.Name = "QuizForm";
-            this.Load += new System.EventHandler(this.QuizForm_Load);
-            this.ResumeLayout(false);
-            this.PerformLayout();
         }
     }
 }
