@@ -2,31 +2,38 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
-using MySql.Data.MySqlClient;  // Import MySQL client
+using MySql.Data.MySqlClient;  //import mysql
 
 namespace QuizMester
 {
     public partial class QuizForm : Form
     {
         private string username;
-        private int difficulty;  // Store difficulty level
+        private int difficulty;  // difficulty is eig genre 
 
-        private List<string> questionsText = new List<string>();  // List to store questions
-        private List<List<string>> answers = new List<List<string>>();  // List of answer sets
-        private List<string> correctAnswers = new List<string>();  // List to store correct answers
+        private List<string> questionsText = new List<string>();  // lijst
+        private List<List<string>> answers = new List<List<string>>();  // voor alle
+        private List<string> correctAnswers = new List<string>();  // opgeslagen vragen en antwoorden
         private int currentQuestionIndex = 0;
         private int score = 0;
         private Random random = new Random();
-        private string selectedAnswer = "";  // Track the selected answer
+        private string selectedAnswer = "";  // gekozen antwoord 
+        private int timeLeft = 10;       
+        private int jokerUses = 0;  
 
-        // Updated constructor to take both username and difficulty
+       
         public QuizForm(string username, int difficulty)
         {
             this.username = username;
-            this.difficulty = difficulty;  // Save the selected difficulty
+            this.difficulty = difficulty;  
             InitializeComponent();
-            LoadQuestions();  // Load questions based on the difficulty
+            LoadQuestions();  // vragen inladen
             CenterToScreen();
+            this.FormClosing += new FormClosingEventHandler(QuizForm_FormClosing);
+
+            questionTimer = new Timer();
+            questionTimer.Interval = 1000;  // 1 seconden
+            questionTimer.Tick += new EventHandler(TimerTick);  
         }
 
         private void QuizForm_Load(object sender, EventArgs e)
@@ -36,17 +43,16 @@ namespace QuizMester
 
         private void LoadQuestions()
         {
-            string connectionString = "Server=localhost;Database=quizmester;Uid=root;";  // Replace with your connection string
+            string connectionString = "Server=localhost;Database=quizmester;Uid=root;"; 
 
             using (MySqlConnection conn = new MySqlConnection(connectionString))
             {
                 try
                 {
                     conn.Open();
-                    string query = "SELECT question_text, correct_answer, wrong_answer1, wrong_answer2, wrong_answer3 " +
-                                   "FROM questions WHERE difficulty = @difficulty";
+                    string query = "SELECT question_text, correct_answer, wrong_answer1, wrong_answer2, wrong_answer3 FROM questions WHERE difficulty = @difficulty";
                     MySqlCommand cmd = new MySqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@difficulty", this.difficulty);  // Use the selected difficulty
+                    cmd.Parameters.AddWithValue("@difficulty", this.difficulty); 
                     MySqlDataReader reader = cmd.ExecuteReader();
 
                     while (reader.Read())
@@ -54,18 +60,21 @@ namespace QuizMester
                         string questionText = reader.GetString("question_text");
                         string correctAnswer = reader.GetString("correct_answer");
                         List<string> allAnswers = new List<string>
-                        {
-                            correctAnswer,
-                            reader.GetString("wrong_answer1"),
-                            reader.GetString("wrong_answer2"),
-                            reader.GetString("wrong_answer3")
-                        };
+                {
+                    correctAnswer,
+                    reader.GetString("wrong_answer1"),
+                    reader.GetString("wrong_answer2"),
+                    reader.GetString("wrong_answer3")
+                };
 
-                        // Add question and answers to respective lists
-                        questionsText.Add(questionText);
-                        answers.Add(ShuffleAnswers(allAnswers));
-                        correctAnswers.Add(correctAnswer);  // Save the correct answer for scoring
+                        
+                        questionsText.Add(questionText); 
+                        answers.Add(ShuffleAnswers(allAnswers)); 
+                        correctAnswers.Add(correctAnswer);  
                     }
+
+                    
+                    ShuffleQuestions();  // shuffelt vragen nadat ze zijn ingeladen
                 }
                 catch (Exception ex)
                 {
@@ -73,6 +82,7 @@ namespace QuizMester
                 }
             }
         }
+
 
         private List<string> ShuffleAnswers(List<string> answerList)
         {
@@ -90,31 +100,30 @@ namespace QuizMester
         {
             if (currentQuestionIndex >= questionsText.Count)
             {
-                // Quiz is over, show leaderboard
+                // als alle vragen zijn geweest (nummer van vragen = huidige vraag)
                 SaveScore();
                 ShowLeaderboard();
                 return;
             }
 
-            // Update the question progress label
+            timeLeft = 10;
+            lblTimeRemaining.Text = $"Time Left: {timeLeft}s";
+            progressBar.Value = timeLeft;
+
+            questionTimer.Start();
+
             lblQuestionProgress.Text = $"Question {currentQuestionIndex + 1}/{questionsText.Count}";
 
-            // Load the current question
             lblQuestion.Text = questionsText[currentQuestionIndex];
-
-            // Clear selected answer
             selectedAnswer = "";
-
-            // Reset button colors (remove any selected state)
             ResetButtonColors();
 
-            // Assign the options (which have already been shuffled)
             btnOption1.Text = answers[currentQuestionIndex][0];
             btnOption2.Text = answers[currentQuestionIndex][1];
             btnOption3.Text = answers[currentQuestionIndex][2];
             btnOption4.Text = answers[currentQuestionIndex][3];
 
-            currentQuestionIndex++;  // Move to the next question for the next round
+            currentQuestionIndex++; 
         }
 
 
@@ -126,51 +135,51 @@ namespace QuizMester
             btnOption4.BackColor = SystemColors.Control;
         }
 
-        // Set the selected state of the button when clicked
         private void btnOption_Click(object sender, EventArgs e)
         {
-            // Reset all button colors
             ResetButtonColors();
 
-            // Set the selected button's color to show it's selected
             Button selectedButton = (Button)sender;
             selectedButton.BackColor = Color.LightBlue;
 
-            // Store the selected answer
             selectedAnswer = selectedButton.Text;
         }
 
         private void btnSubmit_Click(object sender, EventArgs e)
         {
-            // Ensure an answer is selected
             if (string.IsNullOrEmpty(selectedAnswer))
             {
                 MessageBox.Show("Please select an answer before submitting.");
                 return;
             }
 
-            // Get the correct answer for the current question
+            questionTimer.Stop();
+
             string correctAnswer = correctAnswers[currentQuestionIndex - 1];
 
-            // Check if the selected answer is correct
             if (selectedAnswer == correctAnswer)
             {
-                score += 1;  // Increment score if correct
+                score += 1;  
                 MessageBox.Show("Correct!");
             }
             else
             {
-                // Show a message with the user's selected answer and the correct answer
+                if (score > 0)
+                {
+                    score -= 1;
+                }
                 MessageBox.Show($"Incorrect! The correct answer was: {correctAnswer}");
             }
 
-            // Load the next question
+            lblScore.Text = $"Score: {score}";
+
             LoadNextQuestion();
         }
 
+
         private void SaveScore()
         {
-            string connectionString = "Server=localhost;Database=quizmester;Uid=root;";  // Update with your connection string
+            string connectionString = "Server=localhost;Database=quizmester;Uid=root;"; 
 
             using (MySqlConnection conn = new MySqlConnection(connectionString))
             {
@@ -181,7 +190,7 @@ namespace QuizMester
                     MySqlCommand cmd = new MySqlCommand(query, conn);
                     cmd.Parameters.AddWithValue("@username", username);
                     cmd.Parameters.AddWithValue("@score", score);
-                    cmd.Parameters.AddWithValue("@difficulty", difficulty);  // Save the difficulty level
+                    cmd.Parameters.AddWithValue("@difficulty", difficulty);
 
                     cmd.ExecuteNonQuery();
 
@@ -197,10 +206,91 @@ namespace QuizMester
 
         private void ShowLeaderboard()
         {
-            // Open the leaderboard form
             ScoreboardForm scoreboardForm = new ScoreboardForm();
             scoreboardForm.Show();
-            this.Close();  // Close the current quiz form
+            this.Close();  
         }
+
+        private void ShuffleQuestions()
+        {
+            Random random = new Random();  
+            for (int i = questionsText.Count - 1; i > 0; i--)
+            {
+                int j = random.Next(i + 1);
+
+                string tempQuestion = questionsText[i];
+                questionsText[i] = questionsText[j];
+                questionsText[j] = tempQuestion;
+
+                List<string> tempAnswers = answers[i];
+                answers[i] = answers[j];
+                answers[j] = tempAnswers;
+
+                string tempCorrect = correctAnswers[i];
+                correctAnswers[i] = correctAnswers[j];
+                correctAnswers[j] = tempCorrect;
+            }
+        }
+
+        private void TimerTick(object sender, EventArgs e)
+        {
+            if (timeLeft > 0)
+            {
+                timeLeft--;
+                lblTimeRemaining.Text = $"Time Left: {timeLeft}s";
+                progressBar.Value = timeLeft;
+
+                if (timeLeft <= 3)
+                {
+                    lblTimeRemaining.Text = $"Time Left: {timeLeft}s - Time's almost up!";
+                }
+            }
+            else
+            {
+                
+                questionTimer.Stop();  
+                MessageBox.Show("Time's up! You didn't answer in time.");
+
+                
+                if (score > 0)
+                {
+                    score--;
+                }
+
+                lblScore.Text = $"Score: {score}";
+                LoadNextQuestion();
+            }
+        }
+
+        private void btnJoker_Click(object sender, EventArgs e)
+        {
+            if (jokerUses < 3) 
+            {
+                jokerUses++;  
+                score += 1;  
+                lblScore.Text = $"Score: {score}";  
+
+                
+                MessageBox.Show($"You used THE JOKER! You have {3 - jokerUses} Joker(s) left.");
+
+                
+                LoadNextQuestion();
+            }
+
+            
+            if (jokerUses >= 3)
+            {
+                btnJoker.Enabled = false;  
+                MessageBox.Show("You have used all your JOKER skips.");
+            }
+        }
+
+        private void QuizForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            // Close the entire application when this form is closed
+            Application.Exit();
+        }
+
+
     }
 }

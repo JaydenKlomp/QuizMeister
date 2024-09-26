@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Data;
-using System.Data.SqlClient;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
 
@@ -10,7 +9,7 @@ namespace QuizMester
     {
         private static string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["QuizMesterDB"].ConnectionString;
 
-        // Method to check user login credentials
+        // Method to check user login credentials (without encryption)
         public static bool CheckLogin(string username, string password)
         {
             using (MySqlConnection conn = new MySqlConnection(connectionString))
@@ -23,7 +22,7 @@ namespace QuizMester
                 {
                     conn.Open();
                     string storedPassword = (string)cmd.ExecuteScalar();
-                    return BCrypt.Net.BCrypt.Verify(password, storedPassword); // Hash comparison
+                    return password == storedPassword;  // Direct comparison of plain text password
                 }
                 catch (Exception ex)
                 {
@@ -33,7 +32,7 @@ namespace QuizMester
             }
         }
 
-        // Method to register a new user
+        // Method to register a new user (without password encryption)
         public static bool RegisterUser(string username, string password)
         {
             using (MySqlConnection conn = new MySqlConnection(connectionString))
@@ -41,7 +40,7 @@ namespace QuizMester
                 string query = "INSERT INTO users (username, password) VALUES (@username, @password)";
                 MySqlCommand cmd = new MySqlCommand(query, conn);
                 cmd.Parameters.AddWithValue("@username", username);
-                cmd.Parameters.AddWithValue("@password", BCrypt.Net.BCrypt.HashPassword(password)); // Hash password for security
+                cmd.Parameters.AddWithValue("@password", password);  // Store the raw password as plain text
 
                 try
                 {
@@ -100,6 +99,31 @@ namespace QuizMester
                 }
 
                 return scoresTable;
+            }
+        }
+
+        // Method to check if the user is an admin (without encryption)
+        public static bool CheckAdminLogin(string username, string password)
+        {
+            using (MySqlConnection conn = new MySqlConnection(connectionString))  // Use the global connection string
+            {
+                string query = "SELECT password FROM users WHERE username = @username AND is_admin = 1";
+                MySqlCommand cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@username", username);
+
+                try
+                {
+                    conn.Open();
+                    string storedPassword = (string)cmd.ExecuteScalar();
+
+                    // Direct comparison of plain text password for admin login
+                    return password == storedPassword;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error: " + ex.Message);
+                    return false;
+                }
             }
         }
     }

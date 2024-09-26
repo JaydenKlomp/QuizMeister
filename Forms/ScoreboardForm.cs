@@ -10,7 +10,8 @@ namespace QuizMester
         public ScoreboardForm()
         {
             InitializeComponent();
-            LoadScoreboard();  // Load top 10 scores from the database
+            LoadScoreboard();  // laad de top 10 uit de database
+            CenterToScreen();
         }
 
         private void LoadScoreboard()
@@ -34,8 +35,8 @@ namespace QuizMester
                     {
                         // Get the difficulty value and convert it to a more readable format
                         int difficulty = reader.GetInt32("difficulty");
-                        string difficultyText = difficulty == 1 ? "Easy" :
-                                                difficulty == 2 ? "Medium" : "Hard";
+                        string difficultyText = difficulty == 1 ? "General" :
+                                                difficulty == 2 ? "Games" : "Music";
 
                         // Add each score and difficulty to the ListView
                         ListViewItem item = new ListViewItem(reader.GetString("username"));
@@ -69,10 +70,10 @@ namespace QuizMester
             // lvScores
             // 
             this.lvScores.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-    this.columnHeader1,
-    this.columnHeader2,
-    this.columnHeader4,  // Add the Difficulty column here
-    this.columnHeader3});
+            this.columnHeader1,
+            this.columnHeader2,
+            this.columnHeader4,  // Add the Difficulty column here
+            this.columnHeader3});
             this.lvScores.HideSelection = false;
             this.lvScores.Location = new System.Drawing.Point(12, 12);
             this.lvScores.Name = "lvScores";
@@ -144,8 +145,7 @@ namespace QuizMester
 
         private void btnQuit_Click(object sender, EventArgs e)
         {
-            //Application.Exit();  // Closes the application
-            this.Close();
+            Application.Exit();  // Closes the application
         }
 
 

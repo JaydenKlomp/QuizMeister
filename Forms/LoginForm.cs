@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Windows.Forms;
+using MySql.Data.MySqlClient;
+using QuizMeister;
+
 
 namespace QuizMester
 {
@@ -9,7 +12,8 @@ namespace QuizMester
 
         public LoginForm()
         {
-            InitializeComponent();  // Automatically loads the design from the Designer.cs file
+            InitializeComponent();
+
             CenterToScreen();
         }
 
@@ -18,22 +22,55 @@ namespace QuizMester
             string username = txtUsername.Text;
             string password = txtPassword.Text;
 
-            if (DatabaseManager.CheckLogin(username, password))
-            {
-                // Get the selected difficulty from the ComboBox
-                int selectedDifficulty = cbDifficulty.SelectedIndex + 1;  // 1 = Easy, 2 = Medium, 3 = Hard
+            // admin check
+            bool isAdmin = DatabaseManager.CheckAdminLogin(username, password);
 
-                // Pass the username and difficulty to the QuizForm
+            // check voor difficulty voor niet admin users
+            if (!isAdmin && cbDifficulty.SelectedIndex == -1)
+            {
+                MessageBox.Show("Please select a difficulty level.");
+                return;
+            }
+
+            if (isAdmin)
+            {
+                // als admin login succesvol is, alert box
+                DialogResult result = MessageBox.Show("Do you want to go to the Admin Panel?", "Admin Login", MessageBoxButtons.YesNo);
+
+                if (result == DialogResult.Yes)
+                {
+                    // als ja open admin panel
+                    MessageBox.Show("Admin login successful!");
+                    AdminForm adminForm = new AdminForm();
+                    adminForm.Show();
+                }
+                else
+                {
+                    // als nee, start quiz
+                    int selectedDifficulty = cbDifficulty.SelectedIndex + 1;  // gekozen genre
+
+                    // sla username en genre op voor tijdens de quiz
+                    QuizForm quizForm = new QuizForm(username, selectedDifficulty);
+                    quizForm.Show();
+                    this.Hide();
+                }
+            }
+            else if (DatabaseManager.CheckLogin(username, password))
+            {
+                // hetzelfde als hierboven, maar dan voor non admins
+                int selectedDifficulty = cbDifficulty.SelectedIndex + 1;  
+
+                
                 QuizForm quizForm = new QuizForm(username, selectedDifficulty);
                 quizForm.Show();
-                this.Hide();
+                this.Hide();  
             }
             else
             {
-                MessageBox.Show("Invalid login!");
+                // als fout dan
+                MessageBox.Show("Invalid login! Please check your username and password.");
             }
         }
-
 
         private void btnRegister_Click(object sender, EventArgs e)
         {
@@ -56,6 +93,19 @@ namespace QuizMester
             scoreboardForm.Show();
         }
 
+        private void btnAutoLogin_Click(object sender, EventArgs e)
+        {
+            // debug knop
+            txtUsername.Text = "jayden";
+            txtPassword.Text = "test";
 
+           
+            btnLogin_Click(sender, e);
+        }
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+            MessageBox.Show("Gemaakt door: Jayden Klomp");
+        }
     }
 }
